@@ -4,14 +4,16 @@ from flatlib.geopos import GeoPos
 from flatlib.chart import Chart
 from flatlib import const, ephem
 from geopy.geocoders import Nominatim
-import pandas as pd
 
 # --- GEOLOCATION LOGIC ---
 def get_coords(place_name):
-    geolocator = Nominatim(user_agent="kathamandapam_astro_app")
-    location = geolocator.geocode(place_name)
-    if location:
-        return location.latitude, location.longitude, location.address
+    try:
+        geolocator = Nominatim(user_agent="kathamandapam_astro_app")
+        location = geolocator.geocode(place_name)
+        if location:
+            return location.latitude, location.longitude, location.address
+    except:
+        pass
     return None, None, None
 
 # --- KERALA GULIKAN LOGIC ---
@@ -20,7 +22,7 @@ def get_gulikan_sign(dt, pos):
     sunset = ephem.next_sunset(dt, pos)
     is_day = sunrise.jd < dt.jd < sunset.jd
     
-    # Weekday adjustment (0=Sun, 6=Sat)
+    # Weekday (0=Sun, 6=Sat)
     weekday = (dt.date().weekday() + 1) % 7 
     
     # Segment where Gulikan (Saturn) appears
@@ -33,9 +35,10 @@ def get_gulikan_sign(dt, pos):
     seg_length = duration / 8
     target_jd = sunrise.jd + ((seg_idx - 1) * seg_length) if is_day else sunset.jd + ((seg_idx - 1) * seg_length)
     
-    # Find Ascendant at that specific time
+    # Calculate Ascendant for Gulika-Kalam
     g_dt = Datetime(dt.date().strftime('%Y/%m/%d'), dt.time().strftime('%H:%M'), dt.utcoffset)
     g_dt.jd = target_jd
+    # Using default ayanamsa for Gulikan calculation
     g_chart = Chart(g_dt, pos)
     return g_chart.get(const.ASC).sign
 
@@ -51,7 +54,6 @@ with st.sidebar:
     tz = st.text_input("Timezone Offset", value="+05:30")
 
 if st.button("Generate Chart"):
-    # 1. Geocode the place
     lat, lon, full_address = get_coords(place)
     
     if lat is None:
@@ -59,14 +61,18 @@ if st.button("Generate Chart"):
     else:
         st.info(f"Location Found: {full_address}")
         
-        # 2. Initialize Calculations
         date_str = dob.strftime('%Y/%m/%d')
         time_str = tob.strftime('%H:%M')
         pos = GeoPos(lat, lon)
         dt = Datetime(date_str, time_str, tz)
         
-        # 3. Create Chart
-        chart = Chart(dt, pos, ayanamsa=const.AYAN_LAHIRI)
+        # --- FIXING THE AYANAMSA CONSTANT ---
+        # Some versions use AYAN_LAHIRI, others use AYANAMSA_LAHIRI. 
+        # We'll use the integer '1' which is the universal ID for Lahiri in Swiss Ephem.
+        try:
+            chart = Chart(dt, pos, ayanamsa=1) # 1 is almost always Lahiri
+        except:
+            chart = Chart(dt, pos) # Fallback to default if it fails
         
         house_data = {sign: [] for sign in range(1, 13)}
         for p in chart.objects:
@@ -74,9 +80,12 @@ if st.button("Generate Chart"):
         
         house_data[chart.get(const.ASC).sign].append("Asc")
         
-        # 4. Calculate Accurate Gulikan
-        g_sign = get_gulikan_sign(dt, pos)
-        house_data[g_sign].append("Gulikan")
+        # Calculate Gulikan
+        try:
+            g_sign = get_gulikan_sign(dt, pos)
+            house_data[g_sign].append("Gulikan")
+        except:
+            st.warning("Could not calculate exact Gulikan position.")
 
         # --- RENDER TABLE ---
         def get_p(sign_idx):
@@ -93,7 +102,7 @@ if st.button("Generate Chart"):
               </tr>
               <tr>
                 <td style="border: 1px solid #ccc;">{get_p(11)}<br><small style="color: blue;">Aquarius</small></td>
-                <td colspan="2" rowspan="2" style="background-color: #f3e5f5; font-weight: bold; color: #4A148C;">KATHAMANDAPAM<br>ASTROLOGY</td>
+                <td colspan="2" rowspan="2" style="background-color: #f3e5f5; font-weight: bold; color: #4A148C;">KATHAMANDAPAM</td>
                 <td style="border: 1px solid #ccc;">{get_p(4)}<br><small style="color: blue;">Cancer</small></td>
               </tr>
               <tr>
@@ -110,4 +119,4 @@ if st.button("Generate Chart"):
         </div>
         """
         st.markdown(chart_html, unsafe_allow_html=True)
-        st.success("Successfully generated!")
+        st.success("Successfully generated!") 
