@@ -1,4 +1,4 @@
-!pip install flatlib
+
 import streamlit as st
 from flatlib.datetime import Datetime
 from flatlib.geopos import GeoPos
@@ -101,3 +101,4 @@ if st.button("Generate Chart"):
     st.markdown(chart_html, unsafe_allow_stdio=True, unsafe_allow_html=True)
 
     st.success("Chart generated successfully!")
+
