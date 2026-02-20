@@ -2,3 +2,4 @@ pyswisseph
 flatlib
 streamlit
 pandas
+geopy
