@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 from flatlib.datetime import Datetime
 from flatlib.geopos import GeoPos
 from flatlib.chart import Chart
@@ -74,3 +74,4 @@ if st.button("Generate Chart"):
     """
     st.markdown(chart_html, unsafe_allow_html=True)
     st.success("Successfully generated!")
+
